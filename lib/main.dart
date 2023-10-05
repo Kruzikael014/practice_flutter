@@ -1,125 +1,306 @@
+import 'dart:developer';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_pract/firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a blue toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        brightness: Brightness.light,
+        colorScheme: const ColorScheme.light(
+            primary: Colors.blue, secondary: Colors.cyan),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const RootPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class RootPage extends StatefulWidget {
+  const RootPage({super.key});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  final String title = 'Sebuah String';
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<StatefulWidget> createState() => _RootPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _RootPageState extends State<RootPage> {
+  String? studentName, studentID, programID;
+  double? gpa;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  final TextEditingController studentNameController = TextEditingController();
+  final TextEditingController studentIDController = TextEditingController();
+  final TextEditingController programIDController = TextEditingController();
+  final TextEditingController gpaController = TextEditingController();
+
+  setStudentName(String studentName) {
+    this.studentName = studentName;
+  }
+
+  setStudentID(String studentID) {
+    this.studentID = studentID;
+  }
+
+  setProgramID(String programID) {
+    this.programID = programID;
+  }
+
+  setGPA(String gpa) {
+    this.gpa = double.parse(gpa);
+  }
+
+  check() {
+    log('data\n======================');
+    log('StudentName : $studentName');
+    log('StudentID   : $studentID');
+    log('ProgramID   : $programID');
+    log('StudentGPA  : $gpa');
+    log('Testing success');
+    clear();
+  }
+
+  clear() {
+    studentNameController.clear();
+    studentIDController.clear();
+    programIDController.clear();
+    gpaController.clear();
+  }
+
+  reset() {
+    studentID = null;
+    studentName = null;
+    programID = null;
+    gpa = null;
+  }
+
+  createData() {
+    check();
+    DocumentReference documentReference =
+        FirebaseFirestore.instance.collection('student_scores').doc();
+
+    Map<String, dynamic> student = {
+      "studentID": studentID,
+      "studentName": studentName,
+      "programID": programID,
+      "gpa": gpa
+    };
+
+    documentReference.set(student).whenComplete(() {
+      log('data created');
+      reset();
+    }).onError((error, stackTrace) {
+      log('$error occured during insertion!\nHere is the stack trace\n$stackTrace');
     });
+  }
+
+  updateData() async {
+    check();
+
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('student_scores')
+        .where('studentID', isEqualTo: '$studentID')
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      DocumentReference documentReference = querySnapshot.docs[0].reference;
+      Map<String, dynamic> student = {
+        "studentID": studentID,
+        "studentName": studentName,
+        "programID": programID,
+        "gpa": gpa
+      };
+      documentReference.update(student).whenComplete(() {
+        log('data updated');
+        reset();
+      }).onError((error, stackTrace) {
+        log('$error occured during insertion!\nHere is the stack trace\n$stackTrace');
+      });
+    }
+  }
+
+  deleteData() async {
+    check();
+
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('student_scores')
+        .where('studentID', isEqualTo: '$studentID')
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      DocumentReference documentReference = querySnapshot.docs[0].reference;
+
+      documentReference.delete().whenComplete(() {
+        log('data deleted');
+        reset();
+      }).onError((error, stackTrace) {
+        log('$error occured during insertion!\nHere is the stack trace\n$stackTrace');
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Flutter College App'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextFormField(
+                controller: studentNameController,
+                decoration: const InputDecoration(
+                    labelText: 'Name',
+                    fillColor: Colors.white,
+                    focusedBorder: OutlineInputBorder(
+                        borderSide:
+                            BorderSide(color: Colors.blue, width: 2.0))),
+                onChanged: (String name) => setStudentName(name),
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextFormField(
+                controller: studentIDController,
+                decoration: const InputDecoration(
+                    labelText: 'Student ID',
+                    fillColor: Colors.white,
+                    focusedBorder: OutlineInputBorder(
+                        borderSide:
+                            BorderSide(color: Colors.blue, width: 2.0))),
+                onChanged: (String studentID) => setStudentID(studentID),
+              ),
             ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextFormField(
+                controller: programIDController,
+                decoration: const InputDecoration(
+                    labelText: 'Study Program ID',
+                    fillColor: Colors.white,
+                    focusedBorder: OutlineInputBorder(
+                        borderSide:
+                            BorderSide(color: Colors.blue, width: 2.0))),
+                onChanged: (String programID) => setProgramID(programID),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextFormField(
+                controller: gpaController,
+                decoration: const InputDecoration(
+                    labelText: 'GPA',
+                    fillColor: Colors.white,
+                    focusedBorder: OutlineInputBorder(
+                        borderSide:
+                            BorderSide(color: Colors.blue, width: 2.0))),
+                onChanged: (String gpa) => setGPA(gpa),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: <Widget>[
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      )),
+                  child: const Text('Create'),
+                  onPressed: () => createData(),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange[500],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      )),
+                  child: const Text('Update'),
+                  onPressed: () => updateData(),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[700],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      )),
+                  child: const Text('Delete'),
+                  onPressed: () => deleteData(),
+                ),
+              ],
+            ),
+            const StudentInformation()
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+}
+
+class StudentInformation extends StatefulWidget {
+  const StudentInformation({super.key});
+
+  @override
+  State<StatefulWidget> createState() => _StudentInformationState();
+}
+
+class _StudentInformationState extends State<StudentInformation> {
+  final CollectionReference _studentCollection =
+      FirebaseFirestore.instance.collection('student_scores');
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _studentCollection.orderBy('studentName').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Text('Something went wrong');
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Text("Loading");
+        }
+
+        final List<QueryDocumentSnapshot> documents = snapshot.data!.docs;
+
+        if (documents.isEmpty) {
+          return const Text("No data available");
+        }
+
+        return Expanded(
+            child: ListView(
+          children: documents.map((document) {
+            Map<String, dynamic> data = document.data() as Map<String, dynamic>;
+            return ListTile(
+              title: Text('Name: ${data['studentName']}'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('GPA: ${data['gpa']}'),
+                  Text('Program ID: ${data['programID']}'),
+                  Text('Student ID: ${data['studentID']}'),
+                ],
+              ),
+            );
+          }).toList(),
+        ));
+      },
     );
   }
 }
